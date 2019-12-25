@@ -1,0 +1,10 @@
+version: '3'  # version of compose format 
+
+services:
+  drl-service:
+    build: ./drl_service  # path is relative to docker-compose.yml localtion
+    volumes:
+      - ./drl_service:/app # mount point
+    ports:
+      - 5001:80  # host:container
+
