@@ -3,22 +3,22 @@
 # Import framework
 from flask import Flask
 from flask_restful import Resource, Api
+from redis import Redis
 
 # Instantiate the app
 app = Flask(__name__)
 api = Api(app)
+cache = Redis(host='redis', port=6379)
 
 
 class RateLimit(Resource):
-    USERS = {}
 
     def get(self, user_id):
-        rate = self.USERS.get(user_id, 0)
+        rate = cache.incr(user_id)
         return "User " + user_id + " made " + str(rate) + " requests"
 
     def put(self, user_id):
-        rate = self.USERS.get(user_id, 0)
-        self.USERS[user_id] = rate + 1
+        cache.incr(user_id)
         return "User " + user_id + " made a request"
 
 
