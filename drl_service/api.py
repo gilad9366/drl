@@ -1,31 +1,36 @@
 # Distributed Rate Limiter Service
 
-# Import framework
 from flask import Flask
-from flask_restful import Resource, Api
+from flask_jsonrpc import JSONRPC
 from redis import Redis
+from retrying import retry
 
-# Instantiate the app
 app = Flask(__name__)
-api = Api(app)
-cache = Redis(host='redis', port=6379)
+jsonrpc = JSONRPC(app, '/api')
+redis = Redis(host='redis', port=6379)
 
 
-class RateLimit(Resource):
+@jsonrpc.method('App.handle_request')
+def handle_request(user_id):
+    ok = check_rate()
+    if not ok:
+        return False
+    pipe = redis.pipeline()
+    pipe.incr(user_id)
+    pipe.expire(user_id, 500)
+    pipe.execute()
+    return True
 
-    def get(self, user_id):
-        rate = cache.incr(user_id)
-        return "User " + user_id + " made " + str(rate) + " requests"
 
-    def put(self, user_id):
-        cache.incr(user_id)
-        return "User " + user_id + " made a request"
+@retry(stop_max_attempt_number=3)
+def check_rate(user_id):
+    rate = redis.get(user_id)
+    if rate >= 499:
+        return False
+    else:
+        return True
 
 
-# Create routes
-api.add_resource(RateLimit, '/<string:user_id>')
-
-# Run the application
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=80, debug=True)
 
